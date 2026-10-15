@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>POS - Cálido Café</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        #ticketImpresionArea { display: none; }
+
+        @media print {
+            @page { size: letter portrait; margin: 15mm; }
+            body * { visibility: hidden !important; }
+            #ticketImpresionArea, #ticketImpresionArea * { visibility: visible !important; }
+            #ticketImpresionArea {
+                display: block !important;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                font-family: Arial, Helvetica, sans-serif !important;
+                color: #0f172a !important;
+                background-color: #ffffff !important;
+            }
+            .documento-laser { width: 100%; box-sizing: border-box; border: 2px solid #cbd5e1; border-radius: 8px; padding: 30px; }
+            .encabezado-laser { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 15px; margin-bottom: 20px; }
+            .badge-comanda { background-color: #0f172a; color: #ffffff; padding: 6px 14px; border-radius: 4px; font-size: 13px; font-weight: bold; letter-spacing: 1px; display: inline-block; }
+            .grid-detalles { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
+            .caja-detalle { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; }
+            .tabla-laser { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            .tabla-laser th { background-color: #f1f5f9; color: #334155; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 12px; border-bottom: 2px solid #cbd5e1; text-align: left; }
+            .tabla-laser td { padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+            .totales-laser { display: flex; justify-content: flex-end; margin-top: 25px; border-top: 2px solid #0f172a; padding-top: 15px; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 p-3 md:p-4 font-sans h-screen flex flex-col gap-3 box-border overflow-hidden">
+
+<!-- Topbar Estado de Caja -->
+<div class="bg-slate-800 text-white rounded-2xl shadow-md p-3.5 flex justify-between items-center text-xs">
+    <div class="flex items-center gap-3">
+        <span class="font-extrabold uppercase text-slate-300 tracking-wider">CAJA:</span>
+        <span id="badgeEstadoCaja" class="bg-emerald-500 text-white font-extrabold px-3 py-1 rounded-full text-xs uppercase shadow-sm">
+                ABIERTO
+            </span>
+        <span class="text-slate-400 font-semibold">|</span>
+        <span id="lblMontoInicialCaja" class="text-slate-300 font-bold">Fondo: Q 100.00</span>
+    </div>
+    <div class="flex gap-2">
+        <button id="btnAbrirCaja" onclick="abrirModal('modalAbrirCaja')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow text-xs hidden">
+            <i class="fa-solid fa-lock-open"></i> Abrir Caja
+        </button>
+        <button id="btnCerrarCaja" onclick="abrirModalCierreCaja()" class="bg-rose-600 hover:bg-rose-500 text-white font-extrabold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow text-xs">
+            <i class="fa-solid fa-lock"></i> Arqueo / Cierre
+        </button>
+    </div>
+</div>
+
+<!-- Layout de 2 Columnas -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 overflow-hidden">
+
+    <!-- Panel Izquierdo: Catálogo (Columna 7) -->
+    <div class="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200/60 p-4 flex flex-col h-full overflow-hidden">
+
+        <div class="relative mb-3">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                    <i class="fa-solid fa-magnifying-glass text-sm"></i>
+                </span>
+            <input type="text" id="txtBuscarPos" onkeyup="renderProductosPos()" placeholder="Buscar bebida o postre..."
+                   class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+
+        <div class="flex gap-1.5 overflow-x-auto text-xs font-bold pb-2 mb-2">
+            <button onclick="filtrarCatPos('TODAS', this)" class="btn-cat-pos bg-indigo-600 text-white px-4 py-2 rounded-xl whitespace-nowrap shadow-sm">Todas</button>
+            <button onclick="filtrarCatPos('CALIENTES', this)" class="btn-cat-pos bg-slate-100 text-slate-600 px-4 py-2 rounded-xl whitespace-nowrap hover:bg-slate-200">☕ Calientes</button>
+            <button onclick="filtrarCatPos('FRIOS', this)" class="btn-cat-pos bg-slate-100 text-slate-600 px-4 py-2 rounded-xl whitespace-nowrap hover:bg-slate-200">🧊 Fríos</button>
+            <button onclick="filtrarCatPos('MATCHA', this)" class="btn-cat-pos bg-slate-100 text-slate-600 px-4 py-2 rounded-xl whitespace-nowrap hover:bg-slate-200">🍵 Matcha</button>
+            <button onclick="filtrarCatPos('FILTRADOS', this)" class="btn-cat-pos bg-slate-100 text-slate-600 px-4 py-2 rounded-xl whitespace-nowrap hover:bg-slate-200">⚗️ Filtrados</button>
+        </div>
+
+        <div id="gridProductosPos" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 overflow-y-auto flex-1 pr-1"></div>
+    </div>
+
+    <!-- Panel Derecho: Orden Actual (Columna 5) -->
+    <div class="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-slate-200/60 p-4 flex flex-col h-full overflow-hidden">
+
+        <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+            <h3 class="font-extrabold text-slate-800 text-sm flex items-center gap-2">
+                <i class="fa-solid fa-cart-shopping text-indigo-600"></i> Orden Actual
+            </h3>
+            <button onclick="limpiarOrden()" class="text-xs font-bold text-rose-500 hover:text-rose-700">
+                Vaciar
+            </button>
+        </div>
+
+        <div id="listaOrdenPos" class="flex-1 overflow-y-auto divide-y divide-slate-100 my-2 pr-1"></div>
+
+        <div class="border-t border-slate-100 pt-3 space-y-3">
+            <div class="space-y-1">
+                <div class="flex justify-between text-xs text-slate-500 font-semibold">
+                    <span>Subtotal</span>
+                    <span id="lblSubtotalPos">Q 0.00</span>
+                </div>
+                <div class="flex justify-between items-center text-lg font-black text-slate-800">
+                    <span>Total</span>
+                    <span id="lblTotalPos" class="text-indigo-600 font-extrabold">Q 0.00</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5">
+                <button onclick="abrirModalSeleccionarMesa()" class="bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-3 rounded-2xl text-xs flex justify-center items-center gap-1.5 shadow-md shadow-amber-500/20">
+                    <i class="fa-solid fa-utensils"></i> Enviar a Mesa / Cocina
+                </button>
+                <button onclick="abrirModalCobrarVenta()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-2xl text-xs flex justify-center items-center gap-1.5 shadow-md shadow-emerald-600/20">
+                    <i class="fa-solid fa-cash-register"></i> Cobrar Directo
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- MODAL SELECCIONAR MESA Y MÉTODO DE PAGO -->
+<div id="modalSeleccionarMesa" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-xs shadow-2xl space-y-4">
+        <h3 class="text-sm font-extrabold text-slate-800 border-b pb-2 flex items-center gap-2">
+            <i class="fa-solid fa-user-tag text-amber-500"></i> Datos del Pedido
+        </h3>
+
+        <div class="space-y-3 text-xs">
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Nombre del Cliente:</label>
+                <input type="text" id="txtNombreClientePos" placeholder="Ej. Cliente Mostrador"
+                       class="w-full p-2.5 border rounded-xl bg-slate-50 font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none">
+            </div>
+
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Mesa o Destino:</label>
+                <select id="selectUbicacionMesaPos" class="w-full p-2.5 border rounded-xl bg-slate-50 font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                    <option value="1">🪑 Mesa 1</option>
+                    <option value="2">🪑 Mesa 2</option>
+                    <option value="3">🪑 Mesa 3</option>
+                    <option value="4">🪑 Mesa 4</option>
+                    <option value="5">🪑 Mesa 5</option>
+                    <option value="Para Llevar">🎒 Para Llevar</option>
+                    <option value="Barra">☕ En Barra</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Forma de Pago Registrada:</label>
+                <select id="selectMetodoPagoMesa" class="w-full p-2.5 border rounded-xl bg-slate-50 font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                    <option value="EFECTIVO">💵 Efectivo</option>
+                    <option value="TARJETA">💳 Tarjeta / POS Bancario</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2 border-t pt-3">
+            <button onclick="cerrarModal('modalSeleccionarMesa')" class="px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 rounded-xl">Cancelar</button>
+            <button onclick="confirmarEnvioAMesa()" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-xs shadow">
+                Confirmar y Enviar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL COBRAR VENTA DIRECTA (EFECTIVO Y TARJETA) -->
+<div id="modalCobrarVenta" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl space-y-4">
+        <h3 class="text-sm font-extrabold text-slate-800 border-b pb-2 flex items-center justify-between">
+            <span><i class="fa-solid fa-receipt text-emerald-600"></i> Cobrar Venta Directa</span>
+            <span id="lblCobroTotal" class="text-indigo-600 font-black text-base">Q 0.00</span>
+        </h3>
+
+        <div class="space-y-3 text-xs">
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Método de Pago:</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="btnMetodoEfectivo" onclick="seleccionarMetodoPago('EFECTIVO')" class="py-2.5 border-2 border-emerald-600 bg-emerald-50 text-emerald-800 font-extrabold rounded-xl text-center">
+                        💵 Efectivo
+                    </button>
+                    <button id="btnMetodoTarjeta" onclick="seleccionarMetodoPago('TARJETA')" class="py-2.5 border border-slate-200 text-slate-600 font-bold rounded-xl text-center hover:bg-slate-50">
+                        💳 Tarjeta / POS
+                    </button>
+                </div>
+            </div>
+
+            <div id="cajaMontoEfectivo" class="space-y-2">
+                <label class="block font-bold text-slate-700">Monto Entregado por Cliente:</label>
+                <input type="number" id="txtMontoEntregado" onkeyup="calcularCambioCobro()" placeholder="0.00" class="w-full p-2.5 border rounded-xl bg-slate-50 font-extrabold text-slate-800 text-sm">
+                <div class="flex justify-between items-center pt-1 font-bold">
+                    <span class="text-slate-500">Cambio / Vuelto:</span>
+                    <span id="lblCambioCalculado" class="text-emerald-600 text-sm">Q 0.00</span>
+                </div>
+            </div>
+
+            <div id="cajaInfoTarjeta" class="hidden p-3 bg-slate-50 border rounded-xl text-[11px] text-slate-600">
+                <p class="font-bold text-slate-700"><i class="fa-solid fa-credit-card text-indigo-500"></i> Venta procesada en POS Bancario</p>
+                <p class="mt-0.5">No afecta el conteo de billetes en efectivo para el arqueo de caja.</p>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2 border-t pt-3">
+            <button onclick="cerrarModal('modalCobrarVenta')" class="px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 rounded-xl">Cancelar</button>
+            <button onclick="confirmarCobroVentaDirecta()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow">
+                Completar Cobro
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL ABRIR CAJA -->
+<div id="modalAbrirCaja" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl space-y-4">
+        <h3 class="text-base font-bold text-slate-800 border-b pb-2 flex items-center gap-2">
+            <i class="fa-solid fa-lock-open text-emerald-600"></i> Apertura de Caja
+        </h3>
+        <div class="text-xs space-y-2">
+            <label class="block font-bold text-slate-700">Monto Inicial en Efectivo:</label>
+            <input type="number" id="txtMontoInicial" placeholder="100.00" value="100.00" class="w-full p-2 border rounded-xl bg-slate-50 font-bold text-emerald-600 text-sm">
+        </div>
+        <div class="flex justify-end gap-2 border-t pt-3">
+            <button onclick="cerrarModal('modalAbrirCaja')" class="px-3 py-1.5 text-xs font-semibold text-slate-500">Cancelar</button>
+            <button onclick="confirmarAperturaCaja()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs">Aperturar Caja</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CIERRE DE CAJA DESGLOSADO -->
+<div id="modalCierreCaja" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl space-y-3">
+        <h3 class="text-base font-bold text-slate-800 border-b pb-2 flex items-center gap-2">
+            <i class="fa-solid fa-calculator text-rose-600"></i> Arqueo y Cierre de Caja
+        </h3>
+
+        <div class="bg-slate-50 p-3 rounded-xl text-xs space-y-1.5 border">
+            <div class="flex justify-between">
+                <span class="text-slate-500">Fondo Inicial:</span>
+                <span id="lblCierreInicial" class="font-bold">Q 0.00</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-500">Ventas en Efectivo:</span>
+                <span id="lblCierreVentasEfectivo" class="font-bold text-emerald-600">Q 0.00</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-500">Ventas en Tarjeta (POS):</span>
+                <span id="lblCierreVentasTarjeta" class="font-bold text-indigo-600">Q 0.00</span>
+            </div>
+            <hr>
+            <div class="flex justify-between font-extrabold text-slate-800">
+                <span>Efectivo Esperado en Caja:</span>
+                <span id="lblCierreEsperado" class="text-emerald-700 font-black">Q 0.00</span>
+            </div>
+        </div>
+
+        <div class="text-xs space-y-1">
+            <label class="block font-bold text-slate-700">Efectivo Físico en Caja (Conteo):</label>
+            <input type="number" id="txtEfectivoConteo" onkeyup="calcularDiferenciaCierre()" placeholder="0.00" class="w-full p-2 border rounded-xl bg-slate-50 font-bold text-slate-800">
+            <p id="lblDiferenciaCierre" class="text-[11px] font-bold text-slate-500 mt-1"></p>
+        </div>
+
+        <div class="flex justify-end gap-2 border-t pt-3">
+            <button onclick="cerrarModal('modalCierreCaja')" class="px-3 py-1.5 text-xs font-semibold text-slate-500">Cancelar</button>
+            <button onclick="confirmarCierreCaja()" class="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold text-xs">Cerrar Turno</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL EXTRAS -->
+<div id="modalExtrasPos" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-4 w-full max-w-xs shadow-2xl space-y-3">
+        <h4 class="text-xs font-bold text-slate-800 border-b pb-1.5 flex items-center gap-1.5" id="lblExtraProdTitulo">
+            <i class="fa-solid fa-sliders text-indigo-600"></i> Modificadores / Extras
+        </h4>
+
+        <div class="space-y-2 text-xs">
+            <p class="font-bold text-slate-600 text-[11px]">Tipo de Leche / Opción Vegetal:</p>
+            <div class="space-y-1">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="radioLeche" value="" checked class="accent-indigo-600">
+                    <span>Lecha Entera (Estándar)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="radioLeche" value="Leche Deslactosada (+Q0)" class="accent-indigo-600">
+                    <span>Leche Deslactosada</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="radioLeche" value="Leche de Avena (+Q5)" class="accent-indigo-600">
+                    <span>Leche de Avena (+Q5.00)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="radioLeche" value="Leche de Almendra (+Q5)" class="accent-indigo-600">
+                    <span>Leche de Almendra (+Q5.00)</span>
+                </label>
+            </div>
+
+            <p class="font-bold text-slate-600 text-[11px] pt-1">Sabor / Jarabes Adicionales:</p>
+            <div class="space-y-1">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chkJarabeVainilla" value="Jarabe Vainilla (+Q4)" class="accent-indigo-600">
+                    <span>Jarabe Vainilla (+Q4.00)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chkJarabeCaramelo" value="Jarabe Caramelo (+Q4)" class="accent-indigo-600">
+                    <span>Jarabe Caramelo (+Q4.00)</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2 border-t pt-2">
+            <button onclick="cerrarModal('modalExtrasPos')" class="px-3 py-1 text-xs font-semibold text-slate-500">Cancelar</button>
+            <button onclick="confirmarAgregarConExtras()" class="px-4 py-1.5 bg-indigo-600 text-white rounded-xl font-bold text-xs">Agregar</button>
+        </div>
+    </div>
+</div>
+
+<!-- PLANTILLA IMPRESIÓN LÁSER -->
+<div id="ticketImpresionArea">
+    <div class="documento-laser">
+        <div class="encabezado-laser">
+            <div>
+                <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #0f172a;">CÁLIDO CAFÉ</h1>
+                <p style="margin: 4px 0 0 0; font-size: 13px; color: #64748b;">Quetzaltenango, Guatemala</p>
+            </div>
+            <div style="text-align: right;">
+                <div class="badge-comanda">ORDEN / COMANDA</div>
+                <p style="margin: 8px 0 0 0; font-size: 12px; color: #64748b;"><b>Fecha y Hora:</b> <span id="prtFechaHora"></span></p>
+            </div>
+        </div>
+
+        <div class="grid-detalles">
+            <div class="caja-detalle">
+                <p style="margin: 0; color: #64748b; font-size: 11px; font-weight: bold; text-transform: uppercase;">Ubicación de Servicio</p>
+                <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 800; color: #0f172a;" id="prtMesa">Mesa 1</p>
+            </div>
+            <div class="caja-detalle">
+                <p style="margin: 0; color: #64748b; font-size: 11px; font-weight: bold; text-transform: uppercase;">Nombre del Cliente</p>
+                <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 800; color: #0f172a;" id="prtCliente">Cliente Mostrador</p>
+            </div>
+        </div>
+
+        <table class="tabla-laser">
+            <thead>
+            <tr>
+                <th style="width: 10%; text-align: center;">Cant.</th>
+                <th style="width: 60%;">Descripción del Producto</th>
+                <th style="width: 15%; text-align: right;">Precio Unitario</th>
+                <th style="width: 15%; text-align: right;">Subtotal</th>
+            </tr>
+            </thead>
+            <tbody id="prtListaItems"></tbody>
+        </table>
+
+        <div class="totales-laser">
+            <div style="text-align: right; min-width: 200px;">
+                <p style="margin: 0; font-size: 13px; color: #64748b; font-weight: bold;">TOTAL GENERAL:</p>
+                <p style="margin: 4px 0 0 0; font-size: 24px; font-weight: 900; color: #0f172a;">Q <span id="prtTotal">0.00</span></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let ordenActual = [];
+    let catSeleccionadaPos = 'TODAS';
+    let productoTempParaExtras = null;
+    let metodoPagoSeleccionado = 'EFECTIVO';
+
+    function verificarEstadoCajaUI() {
+        const estadoCaja = JSON.parse(localStorage.getItem('estado_caja_turno') || '{"abierta":true, "montoInicial":100}');
+        const badge = document.getElementById('badgeEstadoCaja');
+        const lblMonto = document.getElementById('lblMontoInicialCaja');
+        const btnAbrir = document.getElementById('btnAbrirCaja');
+        const btnCerrar = document.getElementById('btnCerrarCaja');
+
+        if (estadoCaja.abierta) {
+            badge.className = 'bg-emerald-500 text-white font-extrabold px-3 py-1 rounded-full text-xs uppercase shadow-sm';
+            badge.innerText = 'ABIERTO';
+            lblMonto.innerText = 'Fondo: Q ' + parseFloat(estadoCaja.montoInicial || 100).toFixed(2);
+            btnAbrir.classList.add('hidden');
+            btnCerrar.classList.remove('hidden');
+        } else {
+            badge.className = 'bg-rose-500 text-white font-extrabold px-3 py-1 rounded-full text-xs uppercase shadow-sm';
+            badge.innerText = 'CERRADO';
+            lblMonto.innerText = 'Fondo: Q 0.00';
+            btnAbrir.classList.remove('hidden');
+            btnCerrar.classList.add('hidden');
+        }
+    }
+
+    function confirmarAperturaCaja() {
+        const monto = parseFloat(document.getElementById('txtMontoInicial').value) || 0;
+        const turno = { abierta: true, montoInicial: monto, fechaApertura: new Date().toLocaleString() };
+        localStorage.setItem('estado_caja_turno', JSON.stringify(turno));
+        cerrarModal('modalAbrirCaja');
+        verificarEstadoCajaUI();
+    }
+
+    function abrirModalCierreCaja() {
+        const turno = JSON.parse(localStorage.getItem('estado_caja_turno') || '{"montoInicial":100}');
+        let ventasEfectivo = 0;
+        let ventasTarjeta = 0;
+
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('comanda_')) {
+                try {
+                    const c = JSON.parse(localStorage.getItem(k));
+                    if (c && c.items) {
+                        let totComanda = 0;
+                        c.items.forEach(it => totComanda += (parseFloat(it.precio || it.precioVenta || 0) * (parseInt(it.cantidad) || 1)));
+
+                        if (c.metodoPago === 'TARJETA') {
+                            ventasTarjeta += totComanda;
+                        } else {
+                            ventasEfectivo += totComanda;
+                        }
+                    }
+                } catch(e){}
+            }
+        }
+
+        const inicial = parseFloat(turno.montoInicial) || 100;
+        const esperadoEfectivo = inicial + ventasEfectivo;
+
+        document.getElementById('lblCierreInicial').innerText = "Q " + inicial.toFixed(2);
+        document.getElementById('lblCierreVentasEfectivo').innerText = "Q " + ventasEfectivo.toFixed(2);
+        document.getElementById('lblCierreVentasTarjeta').innerText = "Q " + ventasTarjeta.toFixed(2);
+        document.getElementById('lblCierreEsperado').innerText = "Q " + esperadoEfectivo.toFixed(2);
+        document.getElementById('txtEfectivoConteo').value = '';
+        document.getElementById('lblDiferenciaCierre').innerText = '';
+
+        abrirModal('modalCierreCaja');
+    }
+
+    function calcularDiferenciaCierre() {
+        const esperadoText = document.getElementById('lblCierreEsperado').innerText.replace('Q ', '');
+        const esperado = parseFloat(esperadoText) || 0;
+        const conteo = parseFloat(document.getElementById('txtEfectivoConteo').value) || 0;
+        const diff = conteo - esperado;
+        const lbl = document.getElementById('lblDiferenciaCierre');
+
+        if (diff === 0) {
+            lbl.className = "text-[11px] font-bold text-emerald-600 mt-1";
+            lbl.innerText = "✔ Cuadre Exacto en Efectivo";
+        } else if (diff > 0) {
+            lbl.className = "text-[11px] font-bold text-indigo-600 mt-1";
+            lbl.innerText = "▲ Sobrante: Q " + diff.toFixed(2);
+        } else {
+            lbl.className = "text-[11px] font-bold text-rose-600 mt-1";
+            lbl.innerText = "▼ Faltante: Q " + Math.abs(diff).toFixed(2);
+        }
+    }
+
+    function confirmarCierreCaja() {
+        localStorage.setItem('estado_caja_turno', JSON.stringify({ abierta: false }));
+        cerrarModal('modalCierreCaja');
+        verificarEstadoCajaUI();
+    }
+
+    function obtenerProductosMenu() {
+        const raw = localStorage.getItem('menu_productos_admin');
+        if (raw) { try { return JSON.parse(raw); } catch(e){} }
+
+        const menuCompleto = [
+            { id: 1, nombre: 'V60 / Origami / Chemex', tamano: '10 oz', precioVenta: 30.00, categoria: 'FILTRADOS', disponible: true },
+            { id: 2, nombre: 'Espresso', tamano: 'Solo', precioVenta: 20.00, categoria: 'CALIENTES', disponible: true },
+            { id: 3, nombre: 'Cortadito', tamano: '4 oz', precioVenta: 22.00, categoria: 'CALIENTES', disponible: true },
+            { id: 4, nombre: 'Americano', tamano: '12 oz', precioVenta: 22.00, categoria: 'CALIENTES', disponible: true },
+            { id: 5, nombre: 'Flat White', tamano: '6 oz', precioVenta: 26.00, categoria: 'CALIENTES', disponible: true },
+            { id: 6, nombre: 'Cappuccino', tamano: '12 oz', precioVenta: 28.00, categoria: 'CALIENTES', disponible: true },
+            { id: 7, nombre: 'Latte', tamano: '12 oz', precioVenta: 28.00, categoria: 'CALIENTES', disponible: true },
+            { id: 8, nombre: 'Caramel Latte', tamano: '12 oz', precioVenta: 30.00, categoria: 'CALIENTES', disponible: true },
+            { id: 9, nombre: 'Mocca Latte', tamano: '12 oz', precioVenta: 30.00, categoria: 'CALIENTES', disponible: true },
+            { id: 10, nombre: 'Iced Americano', tamano: '16 oz', precioVenta: 24.00, categoria: 'FRIOS', disponible: true },
+            { id: 11, nombre: 'Iced Latte', tamano: '16 oz', precioVenta: 30.00, categoria: 'FRIOS', disponible: true },
+            { id: 12, nombre: 'Matcha Latte Caliente', tamano: '12 oz', precioVenta: 32.00, categoria: 'MATCHA', disponible: true },
+            { id: 13, nombre: 'Strawberry Matcha', tamano: '16 oz', precioVenta: 37.00, categoria: 'MATCHA', disponible: true }
+        ];
+
+        localStorage.setItem('menu_productos_admin', JSON.stringify(menuCompleto));
+        return menuCompleto;
+    }
+
+    function renderProductosPos() {
+        const menu = obtenerProductosMenu();
+        const term = document.getElementById('txtBuscarPos').value.toLowerCase().trim();
+        const grid = document.getElementById('gridProductosPos');
+        grid.innerHTML = '';
+
+        let filtrados = menu.filter(p => p.disponible !== false);
+
+        if (catSeleccionadaPos !== 'TODAS') {
+            filtrados = filtrados.filter(p => (p.categoria || '').toUpperCase() === catSeleccionadaPos.toUpperCase());
+        }
+
+        if (term !== '') {
+            filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(term));
+        }
+
+        filtrados.forEach(p => {
+            const precioNum = parseFloat(p.precioVenta) || 0;
+            grid.innerHTML += `
+                <div onclick="clickProductoPos(${p.id})" class="bg-slate-50/70 border border-slate-100 rounded-2xl p-3.5 hover:border-indigo-500 transition cursor-pointer flex flex-col justify-between space-y-2 shadow-sm">
+                    <div>
+                        <span class="text-[10px] font-bold text-indigo-500">${p.tamano || ''}</span>
+                        <p class="font-bold text-xs text-slate-800 leading-tight mt-0.5">${p.nombre}</p>
+                    </div>
+                    <div class="flex justify-between items-center pt-1">
+                        <p class="font-black text-xs text-slate-900">Q ${precioNum.toFixed(2)}</p>
+                        <span class="text-[9px] font-bold text-indigo-500 hover:underline">+ Extras</span>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function clickProductoPos(id) {
+        const menu = obtenerProductosMenu();
+        const prod = menu.find(p => p.id === id);
+        if (!prod) return;
+
+        const cat = (prod.categoria || '').toUpperCase();
+        if (['CALIENTES', 'FRIOS', 'MATCHA'].includes(cat)) {
+            productoTempParaExtras = prod;
+            document.getElementById('lblExtraProdTitulo').innerText = prod.nombre + " - Personalizar";
+            abrirModal('modalExtrasPos');
+        } else {
+            agregarAOrden(prod, [], 0);
+        }
+    }
+
+    function confirmarAgregarConExtras() {
+        if (!productoTempParaExtras) return;
+        let extras = [];
+        let extraPrecio = 0;
+
+        const lecheSel = document.querySelector('input[name="radioLeche"]:checked').value;
+        if (lecheSel) {
+            extras.push(lecheSel);
+            if (lecheSel.includes('Avena') || lecheSel.includes('Almendra')) extraPrecio += 5.00;
+        }
+
+        if (document.getElementById('chkJarabeVainilla').checked) { extras.push('Jarabe Vainilla'); extraPrecio += 4.00; }
+        if (document.getElementById('chkJarabeCaramelo').checked) { extras.push('Jarabe Caramelo'); extraPrecio += 4.00; }
+
+        agregarAOrden(productoTempParaExtras, extras, extraPrecio);
+        cerrarModal('modalExtrasPos');
+    }
+
+    function agregarAOrden(prod, extras, extraPrecio) {
+        const precioBase = parseFloat(prod.precioVenta || prod.precio || 0);
+        const precioUnitario = precioBase + parseFloat(extraPrecio || 0);
+
+        ordenActual.push({
+            idItem: Date.now(),
+            id: prod.id,
+            nombre: prod.nombre,
+            extras: extras,
+            precio: precioUnitario,
+            precioVenta: precioUnitario,
+            subtotal: precioUnitario,
+            cantidad: 1
+        });
+        renderOrdenPos();
+    }
+
+    function renderOrdenPos() {
+        const container = document.getElementById('listaOrdenPos');
+        container.innerHTML = '';
+        let total = 0;
+
+        if (ordenActual.length === 0) {
+            container.innerHTML = `
+                <div class="h-full flex items-center justify-center text-slate-400 text-xs font-semibold py-8">
+                    El carrito está vacío
+                </div>
+            `;
+            document.getElementById('lblSubtotalPos').innerText = "Q 0.00";
+            document.getElementById('lblTotalPos').innerText = "Q 0.00";
+            return;
+        }
+
+        ordenActual.forEach((it, index) => {
+            const precioNum = parseFloat(it.precio || it.precioVenta || 0);
+            const cantNum = parseInt(it.cantidad) || 1;
+            const subtotalItem = precioNum * cantNum;
+            total += subtotalItem;
+
+            const extrasText = it.extras && it.extras.length > 0 ? `<br><span class="text-[10px] text-indigo-500 font-semibold">+ ${it.extras.join(', ')}</span>` : '';
+
+            container.innerHTML += `
+                <div class="py-2.5 flex justify-between items-center text-xs">
+                    <div>
+                        <p class="font-bold text-slate-800">${it.nombre}${extrasText}</p>
+                        <p class="text-[10px] text-slate-400 font-medium">Q ${precioNum.toFixed(2)} c/u</p>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="cambiarCantidad(${index}, -1)" class="w-5 h-5 bg-slate-100 rounded text-slate-700 font-bold flex justify-center items-center text-xs hover:bg-slate-200">-</button>
+                        <span class="font-black text-xs text-slate-800 px-1">${cantNum}</span>
+                        <button onclick="cambiarCantidad(${index}, 1)" class="w-5 h-5 bg-slate-100 rounded text-slate-700 font-bold flex justify-center items-center text-xs hover:bg-slate-200">+</button>
+                        <button onclick="eliminarItem(${index})" class="text-rose-500 font-bold text-xs ml-1"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>
+            `;
+        });
+
+        document.getElementById('lblSubtotalPos').innerText = "Q " + total.toFixed(2);
+        document.getElementById('lblTotalPos').innerText = "Q " + total.toFixed(2);
+    }
+
+    function cambiarCantidad(index, delta) {
+        ordenActual[index].cantidad = (parseInt(ordenActual[index].cantidad) || 1) + delta;
+        if (ordenActual[index].cantidad <= 0) {
+            ordenActual.splice(index, 1);
+        } else {
+            const precioNum = parseFloat(ordenActual[index].precio || ordenActual[index].precioVenta || 0);
+            ordenActual[index].subtotal = precioNum * ordenActual[index].cantidad;
+        }
+        renderOrdenPos();
+    }
+
+    function eliminarItem(index) {
+        ordenActual.splice(index, 1);
+        renderOrdenPos();
+    }
+
+    function limpiarOrden() {
+        ordenActual = [];
+        renderOrdenPos();
+    }
+
+    function calcularTotalActual() {
+        let total = 0;
+        ordenActual.forEach(it => {
+            const p = parseFloat(it.precio || it.precioVenta || 0);
+            const c = parseInt(it.cantidad) || 1;
+            total += (p * c);
+        });
+        return total;
+    }
+
+    function abrirModalCobrarVenta() {
+        if (ordenActual.length === 0) { alert("Agrega al menos un producto a la orden."); return; }
+        const total = calcularTotalActual();
+        document.getElementById('lblCobroTotal').innerText = "Q " + total.toFixed(2);
+        document.getElementById('txtMontoEntregado').value = total.toFixed(2);
+        seleccionarMetodoPago('EFECTIVO');
+        calcularCambioCobro();
+        abrirModal('modalCobrarVenta');
+    }
+
+    function seleccionarMetodoPago(metodo) {
+        metodoPagoSeleccionado = metodo;
+        const btnEf = document.getElementById('btnMetodoEfectivo');
+        const btnTar = document.getElementById('btnMetodoTarjeta');
+        const cajaEf = document.getElementById('cajaMontoEfectivo');
+        const cajaTar = document.getElementById('cajaInfoTarjeta');
+
+        if (metodo === 'EFECTIVO') {
+            btnEf.className = "py-2.5 border-2 border-emerald-600 bg-emerald-50 text-emerald-800 font-extrabold rounded-xl text-center shadow-sm";
+            btnTar.className = "py-2.5 border border-slate-200 text-slate-600 font-bold rounded-xl text-center hover:bg-slate-50";
+            cajaEf.classList.remove('hidden');
+            cajaTar.classList.add('hidden');
+        } else {
+            btnTar.className = "py-2.5 border-2 border-indigo-600 bg-indigo-50 text-indigo-800 font-extrabold rounded-xl text-center shadow-sm";
+            btnEf.className = "py-2.5 border border-slate-200 text-slate-600 font-bold rounded-xl text-center hover:bg-slate-50";
+            cajaEf.classList.add('hidden');
+            cajaTar.classList.remove('hidden');
+        }
+    }
+
+    function calcularCambioCobro() {
+        const total = calcularTotalActual();
+        const entregado = parseFloat(document.getElementById('txtMontoEntregado').value) || 0;
+        const cambio = entregado - total;
+        const lbl = document.getElementById('lblCambioCalculado');
+
+        if (cambio < 0) {
+            lbl.className = "text-rose-600 font-bold text-sm";
+            lbl.innerText = "Faltan Q " + Math.abs(cambio).toFixed(2);
+        } else {
+            lbl.className = "text-emerald-600 font-black text-sm";
+            lbl.innerText = "Q " + cambio.toFixed(2);
+        }
+    }
+
+    function confirmarCobroVentaDirecta() {
+        const total = calcularTotalActual();
+        if (metodoPagoSeleccionado === 'EFECTIVO') {
+            const entregado = parseFloat(document.getElementById('txtMontoEntregado').value) || 0;
+            if (entregado < total) {
+                alert("El monto entregado en efectivo es menor al total de la venta.");
+                return;
+            }
+        }
+
+        cerrarModal('modalCobrarVenta');
+        procesarGuardadoComanda("0", "Para Llevar / Mostrador", "Cliente Mostrador", metodoPagoSeleccionado);
+    }
+
+    function abrirModalSeleccionarMesa() {
+        if (ordenActual.length === 0) { alert("Agrega al menos un producto a la orden."); return; }
+        document.getElementById('txtNombreClientePos').value = '';
+        abrirModal('modalSeleccionarMesa');
+    }
+
+    function confirmarEnvioAMesa() {
+        const valSel = document.getElementById('selectUbicacionMesaPos').value;
+        const inputNombre = document.getElementById('txtNombreClientePos').value.trim();
+        const metodoPago = document.getElementById('selectMetodoPagoMesa').value;
+        const clienteNombre = inputNombre !== '' ? inputNombre : "Cliente Mostrador";
+
+        let numMesa = valSel;
+        let nombreMesa = "Mesa " + valSel;
+
+        if (valSel === 'Para Llevar' || valSel === 'Barra') {
+            numMesa = '0';
+            nombreMesa = valSel;
+        }
+
+        cerrarModal('modalSeleccionarMesa');
+        procesarGuardadoComanda(numMesa, nombreMesa, clienteNombre, metodoPago);
+    }
+
+    async function procesarGuardadoComanda(numMesa, nombreMesa, clienteNombre, metodoPago) {
+        const deseaImprimir = confirm("¿Deseas IMPRIMIR el reporte de comanda en impresora LÁSER?\n\n- [Aceptar] = Imprime Hoja Carta Láser + Envía a KDS\n- [Cancelar] = Solo Envía a KDS");
+
+        const timestamp = Date.now();
+        const comandaId = 'comanda_' + timestamp;
+        const fechaHora = new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+
+        let totalOrden = 0;
+        const itemsFormateados = ordenActual.map(it => {
+            const precioVal = parseFloat(it.precio || it.precioVenta || 0);
+            const cantVal = parseInt(it.cantidad) || 1;
+            const subVal = precioVal * cantVal;
+            totalOrden += subVal;
+
+            return {
+                id: it.id || Date.now(),
+                nombre: it.nombre,
+                extras: it.extras || [],
+                precio: precioVal,
+                precioVenta: precioVal,
+                cantidad: cantVal,
+                subtotal: subVal
+            };
+        });
+
+        const comandaData = {
+            id: comandaId,
+            cliente: clienteNombre,
+            mesa: nombreMesa,
+            numMesa: numMesa,
+            metodoPago: metodoPago,
+            hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            items: itemsFormateados,
+            total: totalOrden,
+            subtotal: totalOrden,
+            estado: 'EN_PREPARACION'
+        };
+
+        // 1. Guardar localmente
+        localStorage.setItem(comandaId, JSON.stringify(comandaData));
+
+        // 2. ENVIAR AL BACKEND SPRING BOOT (Corta la dependencia de red local)
+        try {
+            await fetch('/api/comandas', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(comandaData)
+            });
+        } catch(e) {
+            console.log("No se pudo conectar directamente con la API, guardado localmente.");
+        }
+
+        // 3. Si es Mesa en Salón, actualizar estado
+        if (numMesa !== '0') {
+            const mesaKey = 'orden_mesa_' + numMesa;
+            localStorage.setItem(mesaKey, JSON.stringify({
+                id: mesaKey,
+                numMesa: numMesa,
+                mesa: nombreMesa,
+                cliente: clienteNombre,
+                items: itemsFormateados,
+                total: totalOrden,
+                subtotal: totalOrden,
+                estado: 'OCUPADO'
+            }));
+
+            ['mesas_salon', 'mesas_salón'].forEach(key => {
+                let mesas = [];
+                try { mesas = JSON.parse(localStorage.getItem(key) || '[]'); } catch(e){}
+
+                let indexM = mesas.findIndex(m => m.numero == numMesa || m.id == numMesa);
+                if (indexM !== -1) {
+                    mesas[indexM].estado = 'OCUPADO';
+                    mesas[indexM].cliente = clienteNombre;
+                    mesas[indexM].items = itemsFormateados;
+                    mesas[indexM].total = totalOrden;
+                    mesas[indexM].subtotal = totalOrden;
+                } else {
+                    mesas.push({
+                        numero: numMesa,
+                        id: numMesa,
+                        estado: 'OCUPADO',
+                        cliente: clienteNombre,
+                        items: itemsFormateados,
+                        total: totalOrden,
+                        subtotal: totalOrden
+                    });
+                }
+                localStorage.setItem(key, JSON.stringify(mesas));
+            });
+        }
+
+        window.dispatchEvent(new Event('storage'));
+
+        if (deseaImprimir) {
+            prepararTicketImpresion(nombreMesa, clienteNombre, fechaHora, itemsFormateados, totalOrden);
+            setTimeout(() => { window.print(); }, 100);
+        }
+
+        alert(`✅ Orden registrada exitosamente [Pago: ${metodoPago}].`);
+        limpiarOrden();
+    }
+
+    function prepararTicketImpresion(nombreUbicacion, clienteNombre, fechaHora, itemsFormateados, totalMesa) {
+        document.getElementById('prtMesa').innerText = nombreUbicacion;
+        document.getElementById('prtCliente').innerText = clienteNombre;
+        document.getElementById('prtFechaHora').innerText = fechaHora;
+        document.getElementById('prtTotal').innerText = totalMesa.toFixed(2);
+
+        let htmlItems = '';
+        itemsFormateados.forEach(i => {
+            const extStr = i.extras && i.extras.length > 0 ? `<br><small style="color:#64748b; font-size:11px;">+ ${i.extras.join(', ')}</small>` : '';
+            htmlItems += `
+                <tr>
+                    <td style="font-weight:bold; text-align:center; font-size: 14px;">${i.cantidad}</td>
+                    <td><b style="font-size:14px;">${i.nombre}</b>${extStr}</td>
+                    <td style="text-align:right;">Q ${i.precio.toFixed(2)}</td>
+                    <td style="text-align:right; font-weight:bold; font-size: 14px;">Q ${i.subtotal.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+        document.getElementById('prtListaItems').innerHTML = htmlItems;
+    }
+
+    function filtrarCatPos(cat, btn) {
+        catSeleccionadaPos = cat;
+        document.querySelectorAll('.btn-cat-pos').forEach(b => {
+            b.className = 'btn-cat-pos bg-slate-100 text-slate-600 px-4 py-2 rounded-xl whitespace-nowrap hover:bg-slate-200';
+        });
+        if (btn) btn.className = 'btn-cat-pos bg-indigo-600 text-white px-4 py-2 rounded-xl whitespace-nowrap shadow-sm';
+        renderProductosPos();
+    }
+
+    function abrirModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function cerrarModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    window.onload = () => {
+        renderProductosPos();
+        renderOrdenPos();
+        verificarEstadoCajaUI();
+    };
+</script>
+</body>
+</html>

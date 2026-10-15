@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Configuración - Cálido Café</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-100 p-3 md:p-6 font-sans h-screen flex flex-col box-border overflow-y-auto">
+
+<!-- Encabezado -->
+<div class="mb-4">
+    <h2 class="text-lg md:text-xl font-bold text-slate-800">Configuración de Sucursal y Ticket</h2>
+    <p class="text-xs text-slate-500">Personaliza la información comercial y parámetros de impresión para Cálido Café</p>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <!-- Formulario Datos de Sucursal -->
+    <div class="bg-white p-5 rounded-2xl shadow space-y-4">
+        <h3 class="text-sm font-bold text-slate-800 border-b pb-2 flex items-center gap-2">
+            <i class="fa-solid fa-store text-amber-600"></i> Datos Comerciales (Encabezado Ticket)
+        </h3>
+
+        <div class="space-y-3 text-xs">
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Nombre Comercial de la Cafetería:</label>
+                <input type="text" id="cfgNombre" value="Cálido Café" class="w-full p-2 border rounded-xl bg-slate-50 font-bold">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">NIT de la Empresa:</label>
+                <input type="text" id="cfgNit" value="10293847-5" class="w-full p-2 border rounded-xl bg-slate-50 font-mono">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Dirección de la Sucursal:</label>
+                <input type="text" id="cfgDireccion" value="Quetzaltenango, Guatemala" class="w-full p-2 border rounded-xl bg-slate-50">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Teléfono de Contacto:</label>
+                <input type="text" id="cfgTelefono" value="7761-0000" class="w-full p-2 border rounded-xl bg-slate-50">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Mensaje al Pie del Ticket:</label>
+                <input type="text" id="cfgPie" value="¡Gracias por visitar Cálido Café! Vuelva pronto." class="w-full p-2 border rounded-xl bg-slate-50">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Formato de Impresora Térmica:</label>
+                <select id="cfgFormatoTicket" class="w-full p-2 border rounded-xl bg-slate-50 font-bold">
+                    <option value="80mm">80 mm (Estándar POS)</option>
+                    <option value="58mm">58 mm (Impresora Móvil / Compacta)</option>
+                </select>
+            </div>
+        </div>
+
+        <button onclick="guardarConfiguracion()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-xs flex justify-center items-center gap-2 shadow">
+            <i class="fa-solid fa-floppy-disk"></i> Guardar Configuración
+        </button>
+    </div>
+
+    <!-- Previsualización del Ticket -->
+    <div class="bg-white p-5 rounded-2xl shadow space-y-3">
+        <h3 class="text-sm font-bold text-slate-800 border-b pb-2 flex items-center gap-2">
+            <i class="fa-solid fa-receipt text-emerald-600"></i> Previsualización en Vivo del Ticket
+        </h3>
+
+        <div class="bg-slate-50 p-4 border border-dashed border-slate-300 rounded-xl font-mono text-[11px] text-slate-800 space-y-2 max-w-xs mx-auto shadow-inner">
+            <div class="text-center">
+                <p class="font-extrabold text-sm uppercase text-amber-900" id="prevNombre">Cálido Café</p>
+                <p id="prevDireccion" class="text-[9px] text-slate-500">Quetzaltenango, Guatemala</p>
+                <p id="prevTel" class="text-[9px] text-slate-500">Tel: 7761-0000</p>
+                <p id="prevNit" class="text-[9px] text-slate-500 font-bold">NIT: 10293847-5</p>
+            </div>
+            <hr class="border-dashed">
+            <div class="flex justify-between">
+                <span>1x Cappuccino 12oz</span>
+                <span>Q 28.00</span>
+            </div>
+            <div class="flex justify-between">
+                <span>1x Strawberry Matcha</span>
+                <span>Q 37.00</span>
+            </div>
+            <hr class="border-dashed">
+            <div class="flex justify-between font-bold text-xs">
+                <span>TOTAL:</span>
+                <span>Q 65.00</span>
+            </div>
+            <hr class="border-dashed">
+            <p class="text-center text-[9px] text-slate-500 mt-2" id="prevPie">¡Gracias por visitar Cálido Café! Vuelva pronto.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    function cargarConfiguracion() {
+        const defaultConfig = {
+            nombre: 'Cálido Café',
+            nit: '10293847-5',
+            direccion: 'Quetzaltenango, Guatemala',
+            telefono: '7761-0000',
+            pie: '¡Gracias por visitar Cálido Café! Vuelva pronto.',
+            formato: '80mm'
+        };
+
+        const stored = JSON.parse(localStorage.getItem('config_sucursal') || '{}');
+        const cfg = { ...defaultConfig, ...stored };
+
+        document.getElementById('cfgNombre').value = cfg.nombre;
+        document.getElementById('cfgNit').value = cfg.nit;
+        document.getElementById('cfgDireccion').value = cfg.direccion;
+        document.getElementById('cfgTelefono').value = cfg.telefono;
+        if (cfg.pie) document.getElementById('cfgPie').value = cfg.pie;
+        if (cfg.formato) document.getElementById('cfgFormatoTicket').value = cfg.formato;
+
+        // Asegurar que quede guardado el nombre oficial por defecto
+        localStorage.setItem('config_sucursal', JSON.stringify(cfg));
+        actualizarPreview();
+    }
+
+    function actualizarPreview() {
+        document.getElementById('prevNombre').innerText = document.getElementById('cfgNombre').value || 'Cálido Café';
+        document.getElementById('prevDireccion').innerText = document.getElementById('cfgDireccion').value || 'Quetzaltenango';
+        document.getElementById('prevTel').innerText = "Tel: " + (document.getElementById('cfgTelefono').value || '0000-0000');
+        document.getElementById('prevNit').innerText = "NIT: " + (document.getElementById('cfgNit').value || 'CF');
+        document.getElementById('prevPie').innerText = document.getElementById('cfgPie').value || '¡Gracias por su compra!';
+    }
+
+    function guardarConfiguracion() {
+        const config = {
+            nombre: document.getElementById('cfgNombre').value,
+            nit: document.getElementById('cfgNit').value,
+            direccion: document.getElementById('cfgDireccion').value,
+            telefono: document.getElementById('cfgTelefono').value,
+            pie: document.getElementById('cfgPie').value,
+            formato: document.getElementById('cfgFormatoTicket').value
+        };
+
+        localStorage.setItem('config_sucursal', JSON.stringify(config));
+        alert("✅ Configuración guardada para Cálido Café.");
+        actualizarPreview();
+    }
+
+    document.querySelectorAll('input').forEach(i => i.addEventListener('input', actualizarPreview));
+    window.onload = cargarConfiguracion;
+</script>
+</body>
+</html>

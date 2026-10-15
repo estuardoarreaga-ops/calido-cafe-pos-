@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso al Sistema - POS Multitienda</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-900 h-screen flex items-center justify-center p-4 font-sans antialiased">
+
+<div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100">
+
+    <!-- Encabezado del Formulario -->
+    <div class="bg-slate-800 p-8 text-center relative">
+        <div class="w-16 h-16 bg-indigo-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-indigo-500/30">
+            <i class="fa-solid fa-store text-2xl"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-white tracking-wide">POS Multitienda</h1>
+        <p class="text-indigo-200 text-xs mt-1">Inicia sesión para acceder a tu sucursal</p>
+    </div>
+
+    <!-- Formulario de Login -->
+    <div class="p-8">
+
+        <!-- Alerta de Error -->
+        <div id="alertError" class="hidden mb-4 bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded-lg text-xs font-medium flex items-center gap-2">
+            <i class="fa-solid fa-circle-exclamation text-sm"></i>
+            <span id="txtError">Usuario o contraseña incorrectos.</span>
+        </div>
+
+        <form id="loginForm" onsubmit="iniciarSesion(event)" class="space-y-5">
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Usuario</label>
+                <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <i class="fa-solid fa-user"></i>
+                        </span>
+                    <input type="text" id="username" required autocomplete="username"
+                           class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
+                           placeholder="Ej. admin o cajero1">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Contraseña</label>
+                <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <i class="fa-solid fa-lock"></i>
+                        </span>
+                    <input type="password" id="password" required autocomplete="current-password"
+                           class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
+                           placeholder="••••••••">
+                </div>
+            </div>
+
+            <button type="submit" id="btnSubmit"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-semibold py-3 rounded-xl shadow-lg shadow-indigo-600/30 transition duration-200 flex items-center justify-center gap-2">
+                <span>Ingresar al Sistema</span>
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </form>
+
+        <div class="mt-6 pt-4 border-t border-slate-100 text-center text-xs text-slate-400">
+            <p>Credenciales de prueba:</p>
+            <p class="font-mono mt-1 text-slate-600">admin / admin123 | cajero1 / cajero123</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function iniciarSesion(event) {
+        event.preventDefault();
+
+        const alertError = document.getElementById('alertError');
+        const txtError = document.getElementById('txtError');
+        const btnSubmit = document.getElementById('btnSubmit');
+
+        alertError.classList.add('hidden');
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin"></i> Autenticando...`;
+
+        const usernameInput = document.getElementById('username').value.trim();
+        const passwordInput = document.getElementById('password').value.trim();
+
+        try {
+            const response = await fetch('/api/usuarios/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: usernameInput,
+                    password: passwordInput
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                // Guardar datos de sesión
+                localStorage.setItem('usuario_nombre', data.nombre || usernameInput);
+                localStorage.setItem('usuario_rol', data.rol || 'ADMIN');
+                localStorage.setItem('franquicia_id', data.franquiciaId || '1');
+
+                // Redirigir al dashboard principal
+                window.location.href = 'dashboard.html';
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                txtError.innerText = errorData.error || 'Credenciales inválidas. Verifica tu usuario y contraseña.';
+                alertError.classList.remove('hidden');
+            }
+        } catch (err) {
+            txtError.innerText = 'Error de conexión con el servidor.';
+            alertError.classList.remove('hidden');
+        } finally {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = `<span>Ingresar al Sistema</span> <i class="fa-solid fa-arrow-right"></i>`;
+        }
+    }
+</script>
+</body>
+</html>

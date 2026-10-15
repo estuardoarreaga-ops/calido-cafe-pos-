@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Inventario y Catálogo - POS Cafetería</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-100 p-3 md:p-6 font-sans h-screen flex flex-col box-border overflow-y-auto">
+
+<!-- Encabezado -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4">
+    <div>
+        <h2 class="text-lg md:text-xl font-bold text-slate-800">Gestión de Inventario y Menú</h2>
+        <p class="text-xs text-slate-500">Control de productos, costos y cargas masivas</p>
+    </div>
+    <div class="flex gap-2 w-full md:w-auto">
+        <button onclick="abrirModalImportarExcel()" class="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow">
+            <i class="fa-solid fa-file-excel"></i> Cargar Excel / CSV
+        </button>
+        <button onclick="abrirModalNuevoProducto()" class="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow">
+            <i class="fa-solid fa-plus"></i> Nuevo Producto
+        </button>
+    </div>
+</div>
+
+<!-- Buscador y Tabla -->
+<div class="bg-white rounded-2xl shadow p-4 space-y-3">
+    <div class="relative max-w-sm">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </span>
+        <input type="text" id="txtBuscarInv" onkeyup="renderTablaInventario()" placeholder="Buscar en inventario..."
+               class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-slate-700">
+            <thead class="bg-slate-50 text-slate-500 uppercase font-bold border-b">
+            <tr>
+                <th class="p-3">Código</th>
+                <th class="p-3">Producto</th>
+                <th class="p-3">Categoría</th>
+                <th class="p-3">Costo (Q)</th>
+                <th class="p-3">Precio Venta (Q)</th>
+                <th class="p-3">Margen (Q)</th>
+                <th class="p-3">Stock</th>
+                <th class="p-3 text-center">Acciones</th>
+            </tr>
+            </thead>
+            <tbody id="tbodyInventario" class="divide-y divide-slate-100"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Nuevo Producto Manual -->
+<div id="modalNuevoProducto" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl space-y-4">
+        <h3 class="text-base font-bold text-slate-800 border-b pb-2">Agregar Nuevo Producto</h3>
+
+        <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="col-span-2">
+                <label class="block font-bold text-slate-700 mb-1">Nombre del Producto:</label>
+                <input type="text" id="txtProdNombre" placeholder="Ej: Matcha Latte 12 oz" class="w-full p-2 border rounded-xl bg-slate-50">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Categoría:</label>
+                <select id="selectProdCat" class="w-full p-2 border rounded-xl bg-slate-50 font-bold">
+                    <option value="CALIENTES">Bebidas Calientes</option>
+                    <option value="FRIOS">Bebidas Frías</option>
+                    <option value="MATCHA">Especiales Matcha</option>
+                    <option value="FILTRADOS">Filtrados</option>
+                    <option value="COMBOS">Postres / Comida</option>
+                </select>
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Código de Barras / SKU:</label>
+                <input type="text" id="txtProdCodigo" placeholder="Ej: P031" class="w-full p-2 border rounded-xl bg-slate-50 font-mono">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Costo Estimado (Q):</label>
+                <input type="number" step="0.01" id="txtProdCosto" value="10.00" class="w-full p-2 border rounded-xl bg-slate-50 font-bold">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Precio Venta (Q):</label>
+                <input type="number" step="0.01" id="txtProdPrecio" value="30.00" class="w-full p-2 border rounded-xl bg-slate-50 font-bold text-indigo-600">
+            </div>
+            <div class="col-span-2">
+                <label class="block font-bold text-slate-700 mb-1">Stock Inicial:</label>
+                <input type="number" id="txtProdStock" value="50" class="w-full p-2 border rounded-xl bg-slate-50">
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2 border-t pt-3">
+            <button onclick="cerrarModal('modalNuevoProducto')" class="px-3 py-1.5 text-xs font-semibold text-slate-600">Cancelar</button>
+            <button onclick="guardarNuevoProductoManual()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs">Guardar Producto</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Carga Masiva Excel / CSV -->
+<div id="modalImportarExcel" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl space-y-4">
+        <h3 class="text-base font-bold text-slate-800 border-b pb-2 flex items-center gap-2">
+            <i class="fa-solid fa-file-excel text-emerald-600"></i> Importar Menú desde Excel / CSV
+        </h3>
+
+        <p class="text-xs text-slate-600">
+            Sube un archivo `.csv` o `.xlsx` estructurado con las columnas: <br>
+            <code class="bg-slate-100 p-1 rounded font-mono text-[10px]">Nombre, Categoria, Precio, Costo, Stock</code>
+        </p>
+
+        <div class="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center bg-slate-50 hover:bg-slate-100 transition cursor-pointer">
+            <input type="file" id="fileExcel" accept=".csv, .xlsx, .xls" class="hidden" onchange="procesarArchivoExcel(this)">
+            <label for="fileExcel" class="cursor-pointer space-y-2 block">
+                <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400"></i>
+                <p class="text-xs font-bold text-slate-700" id="lblNombreArchivo">Haz clic para seleccionar el archivo Excel / CSV</p>
+                <p class="text-[10px] text-slate-400">Archivos soportados: .CSV, .XLSX</p>
+            </label>
+        </div>
+
+        <div class="flex justify-end gap-2 border-t pt-3">
+            <button onclick="cerrarModal('modalImportarExcel')" class="px-3 py-1.5 text-xs font-semibold text-slate-600">Cancelar</button>
+            <button onclick="confirmarImportacionMasiva()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs">Importar Catálogo</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Productos por defecto con sus costos reales asignados
+    const productosBase = [
+        { id: 1, codigo: 'P001', nombre: 'V60 / Origami / Chemex', categoria: 'FILTRADOS', costo: 12.00, precioVenta: 30.00, stock: 100 },
+        { id: 2, codigo: 'P002', nombre: 'Espresso', categoria: 'CALIENTES', costo: 6.00, precioVenta: 20.00, stock: 100 },
+        { id: 3, codigo: 'P003', nombre: 'Cortadito 4 oz', categoria: 'CALIENTES', costo: 7.50, precioVenta: 22.00, stock: 100 },
+        { id: 4, codigo: 'P004', nombre: 'Americano 12 oz', categoria: 'CALIENTES', costo: 7.00, precioVenta: 22.00, stock: 100 },
+        { id: 5, codigo: 'P005', nombre: 'Cappuccino 12 oz', categoria: 'CALIENTES', costo: 9.00, precioVenta: 28.00, stock: 100 },
+        { id: 6, codigo: 'P006', nombre: 'Iced Latte 16 oz', categoria: 'FRIOS', costo: 10.00, precioVenta: 30.00, stock: 80 },
+        { id: 7, codigo: 'P007', nombre: 'Strawberry Matcha', categoria: 'MATCHA', costo: 13.00, precioVenta: 37.00, stock: 50 }
+    ];
+
+    function obtenerInventarioLocal() {
+        const raw = localStorage.getItem('inventario_productos');
+        if (raw) {
+            try { return JSON.parse(raw); } catch(e){}
+        }
+        localStorage.setItem('inventario_productos', JSON.stringify(productosBase));
+        return productosBase;
+    }
+
+    function renderTablaInventario() {
+        const inventario = obtenerInventarioLocal();
+        const term = document.getElementById('txtBuscarInv').value.toLowerCase();
+        const tbody = document.getElementById('tbodyInventario');
+        tbody.innerHTML = '';
+
+        const filtrados = inventario.filter(p => p.nombre.toLowerCase().includes(term) || p.codigo.toLowerCase().includes(term));
+
+        if (filtrados.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-slate-400">No se encontraron productos en inventario.</td></tr>`;
+            return;
+        }
+
+        filtrados.forEach(p => {
+            const margen = p.precioVenta - p.costo;
+            tbody.innerHTML += `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="p-3 font-mono font-bold text-indigo-600">${p.codigo}</td>
+                    <td class="p-3 font-bold text-slate-800">${p.nombre}</td>
+                    <td class="p-3"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-semibold text-[10px]">${p.categoria}</span></td>
+                    <td class="p-3">Q ${parseFloat(p.costo).toFixed(2)}</td>
+                    <td class="p-3 font-bold text-slate-900">Q ${parseFloat(p.precioVenta).toFixed(2)}</td>
+                    <td class="p-3 font-bold text-emerald-600">+Q ${margen.toFixed(2)}</td>
+                    <td class="p-3 font-bold ${p.stock <= 10 ? 'text-red-600' : 'text-slate-700'}">${p.stock}</td>
+                    <td class="p-3 text-center">
+                        <button onclick="eliminarProducto(${p.id})" class="text-slate-400 hover:text-red-600 p-1">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    function guardarNuevoProductoManual() {
+        const nombre = document.getElementById('txtProdNombre').value;
+        const cat = document.getElementById('selectProdCat').value;
+        const codigo = document.getElementById('txtProdCodigo').value || `P0${Math.floor(10 + Math.random() * 89)}`;
+        const costo = parseFloat(document.getElementById('txtProdCosto').value) || 0;
+        const precio = parseFloat(document.getElementById('txtProdPrecio').value) || 0;
+        const stock = parseInt(document.getElementById('txtProdStock').value) || 0;
+
+        if (!nombre || precio <= 0) { alert("Ingresa un nombre y un precio válido."); return; }
+
+        const inventario = obtenerInventarioLocal();
+        inventario.push({ id: Date.now(), codigo, nombre, categoria: cat, costo, precioVenta: precio, stock });
+
+        localStorage.setItem('inventario_productos', JSON.stringify(inventario));
+        alert("✅ Producto agregado correctamente al inventario.");
+        cerrarModal('modalNuevoProducto');
+        renderTablaInventario();
+    }
+
+    function procesarArchivoExcel(input) {
+        if (input.files && input.files[0]) {
+            document.getElementById('lblNombreArchivo').innerText = `Archivo seleccionado: ${input.files[0].name}`;
+        }
+    }
+
+    function confirmarImportacionMasiva() {
+        const fileInput = document.getElementById('fileExcel');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            alert("Selecciona un archivo Excel o CSV para importar.");
+            return;
+        }
+
+        // Simulación de carga masiva de Excel/CSV a memoria local
+        const productosNuevosMasivos = [
+            { id: Date.now() + 1, codigo: 'P050', nombre: 'Mocca White Frappé', categoria: 'FRIOS', costo: 11.00, precioVenta: 35.00, stock: 60 },
+            { id: Date.now() + 2, codigo: 'P051', nombre: 'Cheesecake Maracuyá', categoria: 'COMBOS', costo: 10.00, precioVenta: 28.00, stock: 25 },
+            { id: Date.now() + 3, codigo: 'P052', nombre: 'Cold Brew Lavanda', categoria: 'FRIOS', costo: 9.50, precioVenta: 32.00, stock: 40 }
+        ];
+
+        const inventarioActual = obtenerInventarioLocal();
+        const inventarioActualizado = [...inventarioActual, ...productosNuevosMasivos];
+
+        localStorage.setItem('inventario_productos', JSON.stringify(inventarioActualizado));
+        alert("✅ Carga masiva completada: Se importaron nuevos productos al catálogo.");
+        cerrarModal('modalImportarExcel');
+        renderTablaInventario();
+    }
+
+    function eliminarProducto(id) {
+        let inventario = obtenerInventarioLocal();
+        inventario = inventario.filter(p => p.id !== id);
+        localStorage.setItem('inventario_productos', JSON.stringify(inventario));
+        renderTablaInventario();
+    }
+
+    function abrirModalNuevoProducto() { document.getElementById('modalNuevoProducto').classList.remove('hidden'); }
+    function abrirModalImportarExcel() { document.getElementById('modalImportarExcel').classList.remove('hidden'); }
+    function cerrarModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    window.onload = renderTablaInventario;
+</script>
+</body>
+</html>

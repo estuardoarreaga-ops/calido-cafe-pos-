@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gestión de Menú y Precios - POS Cafetería</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-100 p-3 md:p-6 font-sans h-screen flex flex-col box-border overflow-y-auto">
+
+<!-- Encabezado -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4">
+    <div>
+        <h2 class="text-lg md:text-xl font-bold text-slate-800">Administrador de Menú y Precios</h2>
+        <p class="text-xs text-slate-500">Modifica precios, disponibilidad de bebidas y precios de extras en tiempo real</p>
+    </div>
+    <div class="flex gap-2">
+        <button onclick="abrirModalExtrasAdmin()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow">
+            <i class="fa-solid fa-gear"></i> Precios de Extras
+        </button>
+        <button onclick="abrirModalNuevoProducto()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow">
+            <i class="fa-solid fa-plus"></i> Nuevo Ítem
+        </button>
+    </div>
+</div>
+
+<!-- Filtros y Lista de Menú -->
+<div class="bg-white rounded-2xl shadow p-4 space-y-3">
+    <div class="flex flex-col sm:flex-row justify-between gap-2">
+        <div class="relative flex-1 max-w-xs">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </span>
+            <input type="text" id="txtBuscarMenu" onkeyup="renderTablaMenu()" placeholder="Buscar ítem del menú..."
+                   class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+
+        <div class="flex gap-1 overflow-x-auto text-xs font-semibold">
+            <button onclick="filtrarCatMenu('TODAS', this)" class="btn-cat-admin bg-indigo-600 text-white px-3 py-1.5 rounded-xl">Todas</button>
+            <button onclick="filtrarCatMenu('CALIENTES', this)" class="btn-cat-admin bg-slate-100 text-slate-600 px-3 py-1.5 rounded-xl">☕ Calientes</button>
+            <button onclick="filtrarCatMenu('FRIOS', this)" class="btn-cat-admin bg-slate-100 text-slate-600 px-3 py-1.5 rounded-xl">🧊 Fríos</button>
+            <button onclick="filtrarCatMenu('MATCHA', this)" class="btn-cat-admin bg-slate-100 text-slate-600 px-3 py-1.5 rounded-xl">🍵 Matcha</button>
+            <button onclick="filtrarCatMenu('FILTRADOS', this)" class="btn-cat-admin bg-slate-100 text-slate-600 px-3 py-1.5 rounded-xl">⚗️ Filtrados</button>
+        </div>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-slate-700">
+            <thead class="bg-slate-50 text-slate-500 uppercase font-bold border-b">
+            <tr>
+                <th class="p-3">Producto / Bebida</th>
+                <th class="p-3">Tamaño</th>
+                <th class="p-3">Categoría</th>
+                <th class="p-3">Precio Venta (Q)</th>
+                <th class="p-3 text-center">Estado (POS)</th>
+                <th class="p-3 text-center">Acciones</th>
+            </tr>
+            </thead>
+            <tbody id="tbodyMenuAdmin" class="divide-y divide-slate-100"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Editar / Nuevo Producto -->
+<div id="modalProducto" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl space-y-4">
+        <h3 class="text-base font-bold text-slate-800 border-b pb-2" id="lblModalProdTitulo">Editar Producto</h3>
+
+        <input type="hidden" id="txtProdId">
+        <div class="space-y-3 text-xs">
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Nombre:</label>
+                <input type="text" id="txtNombre" class="w-full p-2 border rounded-xl bg-slate-50 font-bold">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Tamaño:</label>
+                    <input type="text" id="txtTamano" placeholder="12 oz, 16 oz..." class="w-full p-2 border rounded-xl bg-slate-50">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Categoría:</label>
+                    <select id="selectCategoria" class="w-full p-2 border rounded-xl bg-slate-50 font-bold">
+                        <option value="CALIENTES">Calientes</option>
+                        <option value="FRIOS">Fríos</option>
+                        <option value="MATCHA">Matcha</option>
+                        <option value="FILTRADOS">Filtrados</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Precio de Venta (Q):</label>
+                <input type="number" step="0.50" id="txtPrecio" class="w-full p-2.5 border rounded-xl bg-slate-50 font-extrabold text-indigo-600 text-sm">
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2 border-t pt-3">
+            <button onclick="cerrarModal('modalProducto')" class="px-3 py-1.5 text-xs font-semibold text-slate-600">Cancelar</button>
+            <button onclick="guardarProducto()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ajustar Precios de Extras -->
+<div id="modalExtrasAdmin" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl space-y-4">
+        <h3 class="text-base font-bold text-slate-800 border-b pb-2 flex items-center gap-2">
+            <i class="fa-solid fa-sliders text-amber-500"></i> Configurar Precios de Extras
+        </h3>
+
+        <div class="space-y-3 text-xs">
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Adicional Leches Vegetales (Avena / Almendra):</label>
+                <div class="flex items-center gap-2">
+                    <span class="font-bold text-slate-500">Q</span>
+                    <input type="number" id="txtPrecioExtraLeche" value="5.00" step="0.50" class="w-full p-2 border rounded-xl bg-slate-50 font-bold">
+                </div>
+            </div>
+
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Adicional Jarabes y Sabores (Vainilla, Lavanda...):</label>
+                <div class="flex items-center gap-2">
+                    <span class="font-bold text-slate-500">Q</span>
+                    <input type="number" id="txtPrecioExtraJarabe" value="4.00" step="0.50" class="w-full p-2 border rounded-xl bg-slate-50 font-bold">
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2 border-t pt-3">
+            <button onclick="cerrarModal('modalExtrasAdmin')" class="px-3 py-1.5 text-xs font-semibold text-slate-600">Cancelar</button>
+            <button onclick="guardarPreciosExtras()" class="px-4 py-2 bg-amber-500 text-white rounded-xl font-bold text-xs">Actualizar Extras</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const menuBase = [
+        { id: 1, nombre: 'V60 / Origami / Chemex', tamano: '10 oz', precioVenta: 30.00, categoria: 'FILTRADOS', disponible: true },
+        { id: 2, nombre: 'Espresso', tamano: 'Solo', precioVenta: 20.00, categoria: 'CALIENTES', disponible: true },
+        { id: 3, nombre: 'Cortadito', tamano: '4 oz', precioVenta: 22.00, categoria: 'CALIENTES', disponible: true },
+        { id: 4, nombre: 'Americano', tamano: '12 oz', precioVenta: 22.00, categoria: 'CALIENTES', disponible: true },
+        { id: 5, nombre: 'Flat White', tamano: '6 oz', precioVenta: 26.00, categoria: 'CALIENTES', disponible: true },
+        { id: 6, nombre: 'Cappuccino', tamano: '12 oz', precioVenta: 28.00, categoria: 'CALIENTES', disponible: true },
+        { id: 7, nombre: 'Latte', tamano: '12 oz', precioVenta: 28.00, categoria: 'CALIENTES', disponible: true },
+        { id: 8, nombre: 'Caramel Latte', tamano: '12 oz', precioVenta: 30.00, categoria: 'CALIENTES', disponible: true },
+        { id: 9, nombre: 'Mocca Latte', tamano: '12 oz', precioVenta: 30.00, categoria: 'CALIENTES', disponible: true },
+        { id: 10, nombre: 'Matcha Latte', tamano: '12 oz', precioVenta: 30.00, categoria: 'CALIENTES', disponible: true },
+        { id: 11, nombre: 'Iced Americano', tamano: '16 oz', precioVenta: 24.00, categoria: 'FRIOS', disponible: true },
+        { id: 12, nombre: 'Iced Latte', tamano: '16 oz', precioVenta: 30.00, categoria: 'FRIOS', disponible: true },
+        { id: 13, nombre: 'Iced Caramel Latte', tamano: '16 oz', precioVenta: 34.00, categoria: 'FRIOS', disponible: true },
+        { id: 14, nombre: 'Iced Vainilla Latte', tamano: '16 oz', precioVenta: 34.00, categoria: 'FRIOS', disponible: true },
+        { id: 15, nombre: 'Iced Mocca Latte', tamano: '16 oz', precioVenta: 34.00, categoria: 'FRIOS', disponible: true },
+        { id: 16, nombre: 'Strawberry Matcha', tamano: 'Especial', precioVenta: 37.00, categoria: 'MATCHA', disponible: true }
+    ];
+
+    let catSeleccionadaAdmin = 'TODAS';
+
+    function obtenerMenuLocal() {
+        const raw = localStorage.getItem('menu_productos_admin');
+        if (raw) {
+            try { return JSON.parse(raw); } catch(e){}
+        }
+        localStorage.setItem('menu_productos_admin', JSON.stringify(menuBase));
+        return menuBase;
+    }
+
+    function renderTablaMenu() {
+        const menu = obtenerMenuLocal();
+        const term = document.getElementById('txtBuscarMenu').value.toLowerCase();
+        const tbody = document.getElementById('tbodyMenuAdmin');
+        tbody.innerHTML = '';
+
+        let filtrados = menu;
+        if (catSeleccionadaAdmin !== 'TODAS') {
+            filtrados = filtrados.filter(m => m.categoria === catSeleccionadaAdmin);
+        }
+        if (term.trim() !== '') {
+            filtrados = filtrados.filter(m => m.nombre.toLowerCase().includes(term));
+        }
+
+        filtrados.forEach(p => {
+            tbody.innerHTML += `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="p-3 font-bold text-slate-800">${p.nombre}</td>
+                    <td class="p-3 text-slate-500">${p.tamano}</td>
+                    <td class="p-3"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-semibold text-[10px]">${p.categoria}</span></td>
+                    <td class="p-3 font-extrabold text-indigo-600 text-sm">Q ${parseFloat(p.precioVenta).toFixed(2)}</td>
+                    <td class="p-3 text-center">
+                        <button onclick="toggleEstadoProducto(${p.id})" class="px-2.5 py-1 rounded-full font-bold text-[10px] ${p.disponible ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                            ${p.disponible ? '● Disponible' : '○ Agotado'}
+                        </button>
+                    </td>
+                    <td class="p-3 text-center">
+                        <button onclick="abrirEditarProducto(${p.id})" class="text-indigo-600 hover:text-indigo-800 font-bold p-1">
+                            <i class="fa-solid fa-pen-to-square"></i> Editar
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    function toggleEstadoProducto(id) {
+        const menu = obtenerMenuLocal();
+        const item = menu.find(p => p.id === id);
+        if (item) {
+            item.disponible = !item.disponible;
+            localStorage.setItem('menu_productos_admin', JSON.stringify(menu));
+            renderTablaMenu();
+        }
+    }
+
+    function abrirEditarProducto(id) {
+        const menu = obtenerMenuLocal();
+        const item = menu.find(p => p.id === id);
+        if (!item) return;
+
+        document.getElementById('lblModalProdTitulo').innerText = "Editar Producto";
+        document.getElementById('txtProdId').value = item.id;
+        document.getElementById('txtNombre').value = item.nombre;
+        document.getElementById('txtTamano').value = item.tamano;
+        document.getElementById('selectCategoria').value = item.categoria;
+        document.getElementById('txtPrecio').value = item.precioVenta;
+
+        abrirModal('modalProducto');
+    }
+
+    function abrirModalNuevoProducto() {
+        document.getElementById('lblModalProdTitulo').innerText = "Nuevo Producto";
+        document.getElementById('txtProdId').value = "";
+        document.getElementById('txtNombre').value = "";
+        document.getElementById('txtTamano').value = "12 oz";
+        document.getElementById('selectCategoria').value = "CALIENTES";
+        document.getElementById('txtPrecio').value = "25.00";
+
+        abrirModal('modalProducto');
+    }
+
+    function guardarProducto() {
+        const id = document.getElementById('txtProdId').value;
+        const nombre = document.getElementById('txtNombre').value;
+        const tamano = document.getElementById('txtTamano').value;
+        const categoria = document.getElementById('selectCategoria').value;
+        const precioVenta = parseFloat(document.getElementById('txtPrecio').value) || 0;
+
+        if (!nombre || precioVenta <= 0) { alert("Ingresa un nombre y precio válido."); return; }
+
+        let menu = obtenerMenuLocal();
+
+        if (id) {
+            // Actualizar existente
+            const item = menu.find(p => p.id == id);
+            if (item) {
+                item.nombre = nombre;
+                item.tamano = tamano;
+                item.categoria = categoria;
+                item.precioVenta = precioVenta;
+            }
+        } else {
+            // Crear nuevo
+            menu.push({ id: Date.now(), nombre, tamano, precioVenta, categoria, disponible: true });
+        }
+
+        localStorage.setItem('menu_productos_admin', JSON.stringify(menu));
+        alert("✅ Menú actualizado exitosamente.");
+        cerrarModal('modalProducto');
+        renderTablaMenu();
+    }
+
+    function guardarPreciosExtras() {
+        const leche = document.getElementById('txtPrecioExtraLeche').value;
+        const jarabe = document.getElementById('txtPrecioExtraJarabe').value;
+
+        localStorage.setItem('precio_extra_leche', leche);
+        localStorage.setItem('precio_extra_jarabe', jarabe);
+
+        alert("✅ Precios de Extras actualizados.");
+        cerrarModal('modalExtrasAdmin');
+    }
+
+    function filtrarCatMenu(cat, btn) {
+        catSeleccionadaAdmin = cat;
+        document.querySelectorAll('.btn-cat-admin').forEach(b => {
+            b.className = 'btn-cat-admin bg-slate-100 text-slate-600 px-3 py-1.5 rounded-xl';
+        });
+        if (btn) btn.className = 'btn-cat-admin bg-indigo-600 text-white px-3 py-1.5 rounded-xl';
+        renderTablaMenu();
+    }
+
+    function abrirModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function cerrarModal(id) { document.getElementById(id).classList.add('hidden'); }
+    function abrirModalExtrasAdmin() { abrirModal('modalExtrasAdmin'); }
+
+    window.onload = renderTablaMenu;
+</script>
+</body>
+</html>

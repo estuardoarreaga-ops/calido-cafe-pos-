@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cálido Café - POS & Administración</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans h-screen flex flex-col overflow-hidden">
+
+<!-- Topbar -->
+<header class="bg-slate-800 border-b border-slate-700 px-3 md:px-6 py-2.5 flex justify-between items-center shadow-md">
+    <div class="flex items-center gap-2 md:gap-3">
+        <button onclick="toggleSidebar()" class="md:hidden p-2 text-slate-300 hover:text-white focus:outline-none">
+            <i class="fa-solid fa-bars text-lg"></i>
+        </button>
+        <div class="p-1.5 md:p-2 bg-amber-600 rounded-xl shadow-lg shadow-amber-600/30">
+            <i class="fa-solid fa-mug-hot text-sm md:text-lg text-white"></i>
+        </div>
+        <div>
+            <h1 class="font-extrabold text-sm md:text-base tracking-wide text-white">Cálido Café</h1>
+            <span class="text-[9px] md:text-[10px] bg-amber-900/80 text-amber-300 font-bold px-2 py-0.5 rounded-full border border-amber-700">Quetzaltenango</span>
+        </div>
+    </div>
+
+    <div class="flex items-center gap-2 md:gap-4">
+        <div class="text-right text-xs hidden sm:block">
+            <p id="lblUsuarioNombre" class="font-bold text-slate-200">Usuario</p>
+            <p id="lblUsuarioRol" class="text-[10px] text-amber-400 font-semibold uppercase">ROL</p>
+        </div>
+        <button onclick="cerrarSesion()" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-2.5 py-1.5 md:px-3 md:py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+            <i class="fa-solid fa-right-from-bracket"></i> <span class="hidden sm:inline">Salir</span>
+        </button>
+    </div>
+</header>
+
+<!-- Body Layout -->
+<div class="flex-1 flex relative overflow-hidden">
+
+    <!-- Sidebar Navigation -->
+    <aside id="sidebar" class="absolute md:relative z-40 -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out w-64 h-full bg-slate-800 border-r border-slate-700/50 p-4 flex flex-col justify-between shadow-2xl md:shadow-none">
+        <div class="space-y-2">
+            <div class="flex justify-between items-center mb-3 md:hidden">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Módulos</p>
+                <button onclick="toggleSidebar()" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Módulos Operativos (Visibles para todos) -->
+            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-2">Operación</p>
+
+            <button onclick="cargarModulo('pos.html', this)" class="btn-nav w-full text-left px-4 py-3 rounded-xl font-bold text-xs flex items-center gap-3 transition bg-indigo-600 text-white shadow-lg shadow-indigo-600/30">
+                <i class="fa-solid fa-cash-register text-base"></i>
+                <span>Punto de Venta</span>
+            </button>
+
+            <button onclick="cargarModulo('salon.html', this)" class="btn-nav w-full text-left px-4 py-3 rounded-xl font-bold text-xs flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-700/50 transition">
+                <i class="fa-solid fa-utensils text-base"></i>
+                <span>Salón y Mesas</span>
+            </button>
+
+            <button onclick="cargarModulo('kds.html', this)" class="btn-nav w-full text-left px-4 py-3 rounded-xl font-bold text-xs flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-700/50 transition">
+                <i class="fa-solid fa-fire-burner text-base text-amber-400"></i>
+                <span>Monitor Barra / Cocina</span>
+            </button>
+
+            <!-- Módulos Administrativos (Solo ADMIN) -->
+            <div id="seccionAdmin" class="pt-3 border-t border-slate-700/50 space-y-2">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-2">Administración</p>
+
+                <button onclick="cargarModulo('menu-admin.html', this)" class="btn-nav w-full text-left px-4 py-3 rounded-xl font-bold text-xs flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-700/50 transition">
+                    <i class="fa-solid fa-mug-hot text-base"></i>
+                    <span>Menú y Precios</span>
+                </button>
+
+                <button onclick="cargarModulo('inventario.html', this)" class="btn-nav w-full text-left px-4 py-3 rounded-xl font-bold text-xs flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-700/50 transition">
+                    <i class="fa-solid fa-boxes-stacked text-base"></i>
+                    <span>Inventario y Mermas</span>
+                </button>
+
+                <button onclick="cargarModulo('proveedores.html', this)" class="btn-nav w-full text-left px-4 py-3 rounded-xl font-bold text-xs flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-700/50 transition">
+                    <i class="fa-solid fa-truck-field text-base"></i>
+                    <span>Proveedores e Insumos</span>
+                </button>
+
+                <button onclick="cargarModulo('usuarios.html', this)" class="btn-nav w-full text-left px-4 py-3 rounded-xl font-bold text-xs flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-700/50 transition">
+                    <i class="fa-solid fa-users-gear text-base"></i>
+                    <span>Personal y Usuarios</span>
+                </button>
+
+                <button onclick="cargarModulo('configuracion.html', this)" class="btn-nav w-full text-left px-4 py-3 rounded-xl font-bold text-xs flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-700/50 transition">
+                    <i class="fa-solid fa-sliders text-base"></i>
+                    <span>Sucursal y Tickets</span>
+                </button>
+
+                <button onclick="cargarModulo('reportes.html', this)" class="btn-nav w-full text-left px-4 py-3 rounded-xl font-bold text-xs flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-700/50 transition">
+                    <i class="fa-solid fa-chart-line text-base"></i>
+                    <span>Ganancias y Reportes</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="text-[10px] text-slate-500 text-center py-2 border-t border-slate-700/50">
+            Cálido Café - Quetzaltenango
+        </div>
+    </aside>
+
+    <!-- Overlay móvil -->
+    <div id="sidebarOverlay" onclick="toggleSidebar()" class="hidden fixed inset-0 bg-slate-900/50 z-30 md:hidden"></div>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 bg-slate-100 p-1 md:p-2 overflow-hidden w-full">
+        <iframe id="frameModulo" src="pos.html" class="w-full h-full rounded-xl md:rounded-2xl border-0 shadow-inner"></iframe>
+    </main>
+</div>
+
+<script>
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        if (sidebar.classList.contains('-translate-x-full')) {
+            sidebar.classList.remove('-translate-x-full');
+            overlay.classList.remove('hidden');
+        } else {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        }
+    }
+
+    function cargarModulo(url, btn) {
+        const cacheBuster = '?v=' + new Date().getTime();
+        document.getElementById('frameModulo').src = url + cacheBuster;
+
+        document.querySelectorAll('.btn-nav').forEach(b => {
+            b.className = 'btn-nav w-full text-left px-4 py-3 rounded-xl font-bold text-xs flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-700/50 transition';
+        });
+
+        btn.className = 'btn-nav w-full text-left px-4 py-3 rounded-xl font-bold text-xs flex items-center gap-3 transition bg-indigo-600 text-white shadow-lg shadow-indigo-600/30';
+
+        if (window.innerWidth < 768) { toggleSidebar(); }
+    }
+
+    function cerrarSesion() {
+        localStorage.clear();
+        window.location.href = 'index.html';
+    }
+
+    window.onload = () => {
+        const u = localStorage.getItem('usuario_nombre') || 'Administrador';
+        const r = (localStorage.getItem('usuario_rol') || 'ADMIN').toUpperCase();
+
+        document.getElementById('lblUsuarioNombre').innerText = u;
+        document.getElementById('lblUsuarioRol').innerText = r;
+
+        if (r === 'CAJERO' || r === 'MESERO') {
+            const seccionAdmin = document.getElementById('seccionAdmin');
+            if (seccionAdmin) seccionAdmin.classList.add('hidden');
+        }
+    };
+</script>
+</body>
+</html>

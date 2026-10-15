@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gestión de Usuarios y Permisos - POS Cafetería</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-100 p-3 md:p-6 font-sans h-screen flex flex-col box-border overflow-y-auto">
+
+<!-- Encabezado -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4">
+    <div>
+        <h2 class="text-lg md:text-xl font-bold text-slate-800">Gestión de Personal y Permisos</h2>
+        <p class="text-xs text-slate-500">Administración de cuentas, roles de acceso y contraseñas de empleados</p>
+    </div>
+    <button onclick="abrirModalNuevoUsuario()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow">
+        <i class="fa-solid fa-user-plus"></i> Nuevo Empleado
+    </button>
+</div>
+
+<!-- Tabla de Usuarios -->
+<div class="bg-white rounded-2xl shadow p-4 space-y-3">
+    <div class="relative max-w-xs">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </span>
+        <input type="text" id="txtBuscarUsuario" onkeyup="renderTablaUsuarios()" placeholder="Buscar usuario o nombre..."
+               class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-slate-700">
+            <thead class="bg-slate-50 text-slate-500 uppercase font-bold border-b">
+            <tr>
+                <th class="p-3">Nombre Completo</th>
+                <th class="p-3">Usuario (Login)</th>
+                <th class="p-3">Rol de Acceso</th>
+                <th class="p-3 text-center">Estado</th>
+                <th class="p-3 text-center">Acciones</th>
+            </tr>
+            </thead>
+            <tbody id="tbodyUsuariosAdmin" class="divide-y divide-slate-100"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Crear / Editar Usuario -->
+<div id="modalUsuario" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl space-y-4">
+        <h3 class="text-base font-bold text-slate-800 border-b pb-2" id="lblModalUserTitulo">Crear Nuevo Empleado</h3>
+
+        <input type="hidden" id="txtUserId">
+        <div class="space-y-3 text-xs">
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Nombre Completo:</label>
+                <input type="text" id="txtUserNombre" placeholder="Ej: Carlos Ramírez" class="w-full p-2 border rounded-xl bg-slate-50 font-bold">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Nombre de Usuario (Login):</label>
+                <input type="text" id="txtUserLogin" placeholder="Ej: cramirez" class="w-full p-2 border rounded-xl bg-slate-50 font-mono">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Contraseña:</label>
+                <input type="password" id="txtUserPassword" placeholder="••••••••" class="w-full p-2 border rounded-xl bg-slate-50">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Rol en el Sistema:</label>
+                <select id="selectUserRol" class="w-full p-2 border rounded-xl bg-slate-50 font-bold">
+                    <option value="CAJERO">CAJERO / MESERO (Solo POS y Mesas)</option>
+                    <option value="ADMIN">ADMINISTRADOR (Acceso Total)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2 border-t pt-3">
+            <button onclick="cerrarModal('modalUsuario')" class="px-3 py-1.5 text-xs font-semibold text-slate-600">Cancelar</button>
+            <button onclick="guardarUsuario()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs">Guardar Cuenta</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const usuariosBase = [
+        { id: 1, nombre: 'Administrador General', username: 'admin', rol: 'ADMIN', activo: true },
+        { id: 2, nombre: 'Cajero Turno Mañana', username: 'cajero1', rol: 'CAJERO', activo: true },
+        { id: 3, nombre: 'Mesero Salón 1', username: 'mesero1', rol: 'CAJERO', activo: true }
+    ];
+
+    function obtenerUsuariosLocal() {
+        const raw = localStorage.getItem('usuarios_sistema');
+        if (raw) {
+            try { return JSON.parse(raw); } catch(e){}
+        }
+        localStorage.setItem('usuarios_sistema', JSON.stringify(usuariosBase));
+        return usuariosBase;
+    }
+
+    function renderTablaUsuarios() {
+        const usuarios = obtenerUsuariosLocal();
+        const term = document.getElementById('txtBuscarUsuario').value.toLowerCase();
+        const tbody = document.getElementById('tbodyUsuariosAdmin');
+        tbody.innerHTML = '';
+
+        const filtrados = usuarios.filter(u => u.nombre.toLowerCase().includes(term) || u.username.toLowerCase().includes(term));
+
+        filtrados.forEach(u => {
+            const badgeRol = u.rol === 'ADMIN'
+                ? '<span class="bg-indigo-100 text-indigo-800 font-extrabold px-2 py-0.5 rounded text-[10px]">ADMINISTRADOR</span>'
+                : '<span class="bg-amber-100 text-amber-800 font-extrabold px-2 py-0.5 rounded text-[10px]">CAJERO / MESERO</span>';
+
+            tbody.innerHTML += `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="p-3 font-bold text-slate-800">${u.nombre}</td>
+                    <td class="p-3 font-mono text-slate-600">${u.username}</td>
+                    <td class="p-3">${badgeRol}</td>
+                    <td class="p-3 text-center">
+                        <button onclick="toggleEstadoUsuario(${u.id})" class="px-2.5 py-1 rounded-full font-bold text-[10px] ${u.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                            ${u.activo ? '● Activo' : '○ Inactivo'}
+                        </button>
+                    </td>
+                    <td class="p-3 text-center">
+                        <button onclick="abrirEditarUsuario(${u.id})" class="text-indigo-600 hover:text-indigo-800 font-bold p-1">
+                            <i class="fa-solid fa-pen-to-square"></i> Editar
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    function toggleEstadoUsuario(id) {
+        let usuarios = obtenerUsuariosLocal();
+        const u = usuarios.find(x => x.id === id);
+        if (u) {
+            if (u.username === 'admin') { alert("No se puede desactivar la cuenta principal de Administrador."); return; }
+            u.activo = !u.activo;
+            localStorage.setItem('usuarios_sistema', JSON.stringify(usuarios));
+            renderTablaUsuarios();
+        }
+    }
+
+    function abrirModalNuevoUsuario() {
+        document.getElementById('lblModalUserTitulo').innerText = "Crear Nuevo Empleado";
+        document.getElementById('txtUserId').value = "";
+        document.getElementById('txtUserNombre').value = "";
+        document.getElementById('txtUserLogin').value = "";
+        document.getElementById('txtUserPassword').value = "";
+        document.getElementById('selectUserRol').value = "CAJERO";
+        abrirModal('modalUsuario');
+    }
+
+    function abrirEditarUsuario(id) {
+        const usuarios = obtenerUsuariosLocal();
+        const u = usuarios.find(x => x.id === id);
+        if (!u) return;
+
+        document.getElementById('lblModalUserTitulo').innerText = "Editar Empleado";
+        document.getElementById('txtUserId').value = u.id;
+        document.getElementById('txtUserNombre').value = u.nombre;
+        document.getElementById('txtUserLogin').value = u.username;
+        document.getElementById('txtUserPassword').value = "";
+        document.getElementById('selectUserRol').value = u.rol;
+        abrirModal('modalUsuario');
+    }
+
+    function guardarUsuario() {
+        const id = document.getElementById('txtUserId').value;
+        const nombre = document.getElementById('txtUserNombre').value;
+        const username = document.getElementById('txtUserLogin').value.trim().toLowerCase();
+        const password = document.getElementById('txtUserPassword').value;
+        const rol = document.getElementById('selectUserRol').value;
+
+        if (!nombre || !username) { alert("Ingresa el nombre completo y usuario de acceso."); return; }
+
+        let usuarios = obtenerUsuariosLocal();
+
+        if (id) {
+            const u = usuarios.find(x => x.id == id);
+            if (u) {
+                u.nombre = nombre;
+                u.username = username;
+                u.rol = rol;
+                if (password) u.password = password;
+            }
+        } else {
+            if (usuarios.some(x => x.username === username)) {
+                alert("Ese nombre de usuario ya está registrado."); return;
+            }
+            usuarios.push({ id: Date.now(), nombre, username, password: password || '123456', rol, activo: true });
+        }
+
+        localStorage.setItem('usuarios_sistema', JSON.stringify(usuarios));
+        alert("✅ Cuenta de usuario guardada correctamente.");
+        cerrarModal('modalUsuario');
+        renderTablaUsuarios();
+    }
+
+    function abrirModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function cerrarModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    window.onload = renderTablaUsuarios;
+</script>
+</body>
+</html>
